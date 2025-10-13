@@ -3,6 +3,7 @@ import time
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision import utils
+import clip
 
 
 def test1():
@@ -228,6 +229,32 @@ def lr_scheduler():
     plt.show()
 
 
+def test_clip():
+    device = "cuda"
+    print(clip.available_models())
+    model, preprocess = clip.load("ViT-L/14@336px", device=device)
+    image = preprocess(Image.open("img1.jpg")).unsqueeze(0).to(device)
+    print(image.shape)
+    texts = [
+        "cute", "beautiful", "big", "girl", "happy", "christmas",
+        "spring", "summer", "autumn", "winter",
+        "three anime girls", "two boys", "merry christmas"
+    ]
+    text = clip.tokenize(texts).to(device)
+    with torch.no_grad():
+        tt = time.time()
+        image_features = model.encode_image(image.to(device))
+        text_features = model.encode_text(text)
+        logits_per_image, logits_per_text = model(image, text)
+        print(f"{time.time() - tt}s")
+        # probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+        print(image_features.shape)
+        print(text_features.shape)
+        for i in range(len(texts)):
+            print(texts[i], logits_per_text[i, 0].item())
+    # print("Label probs:", probs)
+
+
 if __name__ == '__main__':
     # test1()
     # test2()
@@ -235,4 +262,5 @@ if __name__ == '__main__':
     # test_conv_channel_num()
     # test4()
     # test5()
-    lr_scheduler()
+    # lr_scheduler()
+    test_clip()

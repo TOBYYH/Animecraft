@@ -11,16 +11,16 @@ class _VAE(nn.Module):
         C_Z = 8
         
         self.encoder = nn.Sequential(
-            Conv(3, C[0], 4, 4, 0, act),
+            _Conv(3, C[0], 4, 4, 0, act),
             ResBlock0(C[0], act),
-            Conv(C[0], C[1], 2, 2, 0, act),
+            _Conv(C[0], C[1], 2, 2, 0, act),
             ResBlock0(C[1], act),
             ResBlock0(C[1], act),
             nn.Conv2d(C[1], C_Z*2, 1, 1, 0)
         )
         
         self.decoder = nn.Sequential(
-            Conv(C_Z, C[1], 1, 1, 0, act),
+            _Conv(C_Z, C[1], 1, 1, 0, act),
             ResBlock0(C[1], act),
             ResBlock0(C[1], act),
             ConvT(C[1], C[0], 2, 2, 0, act),

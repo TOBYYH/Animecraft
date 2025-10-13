@@ -82,7 +82,7 @@ class FixedSoftplus(nn.Module):
         self.b = math.log(2, math.e) * 0.5
     
     def __forward(self, x):
-        return F.softplus(x, beta=2) - self.b
+        return F.softplus(x, beta=2).add_(-self.b)
     
     def forward(self, x):
         return checkpoint(self.__forward, x)
@@ -91,6 +91,7 @@ class FixedSoftplus(nn.Module):
         x = torch.linspace(-10, 10, 1000, dtype=torch.float32)
         y = self.__forward(x)
         plt.plot(x, y)
+        plt.plot(x, torch.zeros_like(x))
         plt.show()
 
 
@@ -427,21 +428,21 @@ if __name__ == '__main__':
     
     # dataset = DatasetForFilter("frames")
     # dataset.test()
-    # dataset = AcDataset("frames/*.png", (9*64, 16*64))
-    # print(len(dataset))
-    # dataset.test(2, 3)
+    dataset = AcDataset("frames/*.png", (9*64, 16*64))
+    print(len(dataset))
+    dataset.test(2, 3)
     
-    block = Block({
-        "c": 32,
-        "activation": "ELU",
-        "layers": "rscrscrscrsc",
-        "t_emb_dim": 64,
-        "context_dim": 256,
-        "num_heads": (4, 2)
-    })
-    x = torch.randn([3, 32, 128, 128], dtype=torch.float32, device="cpu")
-    t_emb = torch.randn([3, 64], dtype=torch.float32, device="cpu")
-    context = torch.randn([3, 16, 256], dtype=torch.float32, device="cpu")
-    print(block(x, t_emb, context).shape)
+    # block = Block({
+    #     "c": 32,
+    #     "activation": "ELU",
+    #     "layers": "rscrscrscrsc",
+    #     "t_emb_dim": 64,
+    #     "context_dim": 256,
+    #     "num_heads": (4, 2)
+    # })
+    # x = torch.randn([3, 32, 128, 128], dtype=torch.float32, device="cpu")
+    # t_emb = torch.randn([3, 64], dtype=torch.float32, device="cpu")
+    # context = torch.randn([3, 16, 256], dtype=torch.float32, device="cpu")
+    # print(block(x, t_emb, context).shape)
     
     # FixedSoftplus().test()
