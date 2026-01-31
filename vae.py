@@ -7,6 +7,11 @@ import argparse
 from tqdm import tqdm
 
 
+PATH = "/home/tobyh/work-space/datasets/dandadan/*"
+NAME = "diffusion"
+SIZE = (10*32, 16*32)
+
+
 class ResBlock0(nn.Module):
     def __init__(self, c, act="tanh") -> None:
         super().__init__()
@@ -231,11 +236,11 @@ class VAE(nn.Module):
         return self.decode(z), latent_loss
 
     def summary(self):
-        H, W = 9*64, 16*64
         device, dtype = "cuda", torch.float32
         # self.eval().to(device)
         # torchinfo.summary(self, input_size=(1, 3, H, W), device=device)
         self.eval().to(device, dtype)
+        H, W = SIZE
         z = torch.randn([1, 3, H, W], dtype=dtype, device=device)
         looper = tqdm(range(100))
         t = time.time()
@@ -253,12 +258,12 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False,
         batch_size = bs_G
     else:
         batch_size = bs_D
-    H, W = 9*64, 16*64
     path = "frames/*.png"
     device, dtype = "cuda", torch.float32
     if epoch < save_step:
         save_step = epoch
     epoch_exist = len(glob.glob(f"samples/{name}/epoch*")) * save_step
+    H, W = SIZE
     dataset = AcDataset(path, (H, W), dtype)
     loader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4, drop_last=True)
     if train_G:
@@ -385,12 +390,12 @@ def train2(name, model_G, model_D, epoch, train_G=True, train_D=False,
     else:
         batch_size = bs_D
         turn_G, turn_D = False, True
-    H, W = 9*64, 16*64
     path = "frames/*.png"
     device, dtype = "cuda", torch.float32
     if epoch < save_step:
         save_step = epoch
     epoch_exist = len(glob.glob(f"samples/{name}/epoch*")) * save_step
+    H, W = SIZE
     dataset = AcDataset(path, (H, W), dtype)
     loader = DataLoader(dataset, batch_size, shuffle=True, num_workers=4, drop_last=True)
     if train_G:
@@ -521,7 +526,6 @@ def train2(name, model_G, model_D, epoch, train_G=True, train_D=False,
 def test(name, model):
     path = "test/*.png"
     device = "cuda"
-    H, W = 9*64, 16*64
     dataset = AcDataset(path, (H, W), test=True)
     model.eval().to(device)
     load_model_file(model, f"{name}.pt")

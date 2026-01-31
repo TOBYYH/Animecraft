@@ -234,7 +234,7 @@ def test_clip():
     print(clip.available_models())
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
     image = preprocess(Image.open("img1.jpg")).unsqueeze(0).to(device)
-    print(image.shape)
+    print(image.shape) # [1, 3, 336, 336]
     texts = [
         "cute", "beautiful", "big", "girl", "happy", "christmas",
         "spring", "summer", "autumn", "winter",

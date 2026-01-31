@@ -165,10 +165,10 @@ def tensor2image_np(image:torch.Tensor):
 
 
 class Conv(nn.Module):
-    def __init__(self, c_in, c_out, k, s, p, act="tanh") -> None:
+    def __init__(self, c_in, c_out, k, s, p, g:int=1, act="tanh") -> None:
         super().__init__()
         self.nn = nn.Sequential(
-            nn.Conv2d(c_in, c_out, k, s, p),
+            nn.Conv2d(c_in, c_out, k, s, p, groups=g),
             group_norm(c_out),
             activition(act, True)
         )
@@ -178,10 +178,10 @@ class Conv(nn.Module):
 
 
 class ConvT(nn.Module):
-    def __init__(self, c_in, c_out, k, s, p, act="tanh") -> None:
+    def __init__(self, c_in, c_out, k, s, p, g:int=1, act="tanh") -> None:
         super().__init__()
         self.nn = nn.Sequential(
-            nn.ConvTranspose2d(c_in, c_out, k, s, p),
+            nn.ConvTranspose2d(c_in, c_out, k, s, p, groups=g),
             group_norm(c_out),
             activition(act, True)
         )
