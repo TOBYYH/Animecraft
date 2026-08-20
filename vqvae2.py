@@ -19,7 +19,7 @@ class ResBlock1(nn.Module):
             activition(act, True),
             nn.Conv2d(c, c, 3, 1, 1)
         )
-    
+
     def forward(self, x):
         return x + self.nn(x)
 
@@ -28,7 +28,7 @@ class Discriminator1(nn.Module):
     def __init__(self, act="ELU"):
         super().__init__()
         print("Discriminator initializing...")
-        
+
         C_IN = 32
         S = 64
         C = (S, S*2, S*4)
@@ -42,10 +42,10 @@ class Discriminator1(nn.Module):
             nn.Conv2d(C[2], 1, 1, 1, 0),
             activition("sigmoid", True)
         )
-    
+
     def forward(self, x):
         return self.layers(x)
-    
+
     def summary(self):
         H, W = 9*64, 16*64
         device, dtype = "cuda", torch.float32
@@ -121,17 +121,17 @@ class ResNetBlock(nn.Module):
             activition(act),
             nn.Conv2d(c_num, c_num, 1, 1, 0)
         )
-    
+
     def forward(self, x):
         return self.layers(x) + x
 
 
-class SelfAttention(nn.Module):
+class _SelfAttention(nn.Module):
     def __init__(self, c_num) -> None:
         super().__init__()
         self.ln = nn.LayerNorm([c_num])
         self.attention = nn.MultiheadAttention(c_num, 4, batch_first=True)
-    
+
     def forward(self, x):
         N, C, H, W = x.shape
         x = x.view(N, C, H*W).swapaxes(1, 2)
@@ -146,7 +146,7 @@ def res_block(res_n, a_id, c, k, g, act):
     for i in range(res_n):
         blocks.append(ResNetBlock(c, k, g, act))
         if i == a_id:
-            blocks.append(SelfAttention(c))
+            blocks.append(_SelfAttention(c))
     return blocks
 
 
@@ -154,7 +154,7 @@ class VQVAE(nn.Module):
     def __init__(self, act="ELU"):
         super().__init__()
         print("VQVAE initializing...")
-        
+
         S = 80
         C = (S, S*2, S*4)
         K = (5, 5, 3)
@@ -163,7 +163,7 @@ class VQVAE(nn.Module):
         RES_N = 3
         EMB_DIM = 64
         EMB_NUM = 1024
-        
+
         blocks = [
             nn.Conv2d(3, S//4, 4, 2, 1),
             activition(act),
@@ -175,7 +175,7 @@ class VQVAE(nn.Module):
             blocks += res_block(RES_N, A[i], C[i], K[i], G[i], act)
             blocks.append(activition(act))
         self.enc_b = nn.Sequential(*blocks)
-        
+
         blocks = [nn.Conv2d(C[-1], C[-1], 4, 2, 1)]
         blocks += res_block(RES_N, A[-1], C[-1], 3, 1, act)
         blocks += [
@@ -185,10 +185,10 @@ class VQVAE(nn.Module):
         blocks += res_block(RES_N, A[-1], C[-1], 3, 1, act)
         blocks.append(activition(act))
         self.enc_t = nn.Sequential(*blocks)
-        
+
         self.quantize_conv_t = nn.Conv2d(C[-1], EMB_DIM, 1, 1, 0)
         self.quantize_t = Quantize(EMB_DIM, EMB_NUM)
-        
+
         blocks = [nn.Conv2d(EMB_DIM, C[-1], 1, 1, 0)]
         blocks += res_block(RES_N, A[-1], C[-1], 3, 1, act)
         blocks += [
@@ -201,7 +201,7 @@ class VQVAE(nn.Module):
             nn.ConvTranspose2d(C[-1], EMB_DIM, 4, 2, 1)
         ]
         self.dec_t = nn.Sequential(*blocks)
-        
+
         self.quantize_conv_b = nn.Conv2d(EMB_DIM + C[-1], EMB_DIM, 1, 1, 0)
         self.quantize_b = Quantize(EMB_DIM, EMB_NUM)
         self.upsample_t = nn.Sequential(
@@ -209,7 +209,7 @@ class VQVAE(nn.Module):
             activition(act),
             nn.ConvTranspose2d(EMB_DIM, EMB_DIM, 4, 2, 1)
         )
-        
+
         blocks = [nn.Conv2d(EMB_DIM * 2, C[-1], 1, 1, 0)]
         for i in range(len(C) - 1, -1, -1):
             blocks += res_block(RES_N, A[i], C[i], K[i], G[i], act)
@@ -226,7 +226,7 @@ class VQVAE(nn.Module):
             nn.Tanh()
         ]
         self.dec = nn.Sequential(*blocks)
-    
+
     def forward(self, x):
         quant_t, quant_b, diff, _, _ = self.encode(x)
         dec = self.decode(quant_t, quant_b)
@@ -268,7 +268,7 @@ class VQVAE(nn.Module):
         dec = self.decode(quant_t, quant_b)
 
         return dec
-    
+
     def summary(self):
         H, W = 9*64, 16*64
         device, dtype = "cuda", torch.float32
@@ -311,7 +311,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
     else:
         model_G.eval().to(device, dtype)
     load_model_file(model_G, f"{name}.pt")
-    
+
     if train_D:
         model_D.train().to(device, dtype)
         load_model_file(model_D, f"{name}-D.pt")
@@ -333,7 +333,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
         looper = tqdm(loader, total=len(loader))
         for data in looper:
             images = data.to(device).requires_grad_(False)
-            
+
             if train_G:
                 optimizer_G.zero_grad()
                 out, latent_loss = model_G(images)
@@ -350,7 +350,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
             else:
                 with torch.no_grad():
                     out, _ = model_G(images)
-            
+
             if train_D and (not train_G or (A_loss < 0.4)):
                 optimizer_D.zero_grad()
                 fake_pred = model_D(out.detach())
@@ -362,7 +362,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
                 optimizer_D.step()
                 scheduler_D.step()
                 D_loss = loss_D.item()
-            
+
             c += 1
             looper.set_description(f"epoch {e}")
             if train_G and train_D:
@@ -379,7 +379,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
             else:
                 D_loss_list.append(D_loss)
                 looper.set_postfix(D_loss=D_loss, lr=optimizer_D.param_groups[0]['lr'])
-        
+
         if e % save_step == 0:
             if train_G:
                 torch.save(model_G.state_dict(), f"models/{name}.pt")
@@ -397,7 +397,7 @@ def train(name, model_G, model_D, epoch, train_G=True, train_D=False, loss_plot=
                 model_G.train()
             if train_D:
                 torch.save(model_D.state_dict(), f"models/{name}-D.pt")
-    
+
     print(f"Train time: {time.time() - tt}")
     if loss_plot:
         if train_G:
@@ -443,7 +443,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(f"samples/{name}"):
         os.mkdir(f"samples/{name}")
-    
+
     G = VQVAE()
     D = Discriminator1()
     # G.summary()

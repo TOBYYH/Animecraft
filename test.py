@@ -3,7 +3,7 @@ import time
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision import utils
-import clip
+# import clip
 
 
 def test1():
@@ -24,10 +24,10 @@ class TestDataset(Dataset):
             v2.Resize(size),
             v2.ToDtype(torch.float32, scale=True)
         ])
-    
+
     def __len__(self):
         return len(self.paths)
-    
+
     def __getitem__(self, index):
         # image = Image.open(self.paths[index]).convert("RGB")
         image = torchvision.io.read_image(self.paths[index], torchvision.io.ImageReadMode.RGB)
@@ -64,9 +64,9 @@ class AutoEncoder(nn.Module):
                 nn.Tanh()
             ]
         layer_list.append(nn.ConvTranspose2d(C[0], 3, 4, 2, 1))
-        
+
         self.layers = nn.Sequential(*layer_list)
-    
+
     def forward(self, x):
         return self.layers(x)
 
@@ -92,7 +92,7 @@ def test2():
             looper.set_description(f"epoch {e}")
             looper.set_postfix(loss=loss.item(), lr=optimizer.param_groups[0]['lr'])
             loss_list.append(loss.item())
-    
+
     print(f"Train time: {time.time() - tt}")
     model.eval()
     with torch.no_grad():
@@ -165,7 +165,7 @@ class SimpleConv(nn.Module):
             nn.Conv2d(c, c, k, 1, p, groups=g),
             nn.Conv2d(c, c, k, 1, p, groups=g)
         )
-    
+
     def forward(self, x):
         return self.nn(x)
 
@@ -193,23 +193,50 @@ def test4():
 
 
 def test5():
-    path = "frames/*.png"
+    def get_fft_show(_img_fft):
+        show_fft = torch.log(torch.abs(_img_fft) + 1e-8)
+        print(show_fft.shape, show_fft.dtype)
+        print(show_fft.max(), show_fft.min(), show_fft.mean())
+        show_fft = (show_fft - show_fft.min()) / (show_fft.max() - show_fft.min())
+        return show_fft
+    path = "../datasets/anime/*.png"
     H, W = 9*64, 16*64
     dataset = AcDataset(path, (H, W), test=True)
     image = random.choice(dataset)
     print(image.shape, image.dtype)
-    img_fft = torch.fft.fft2(image)
+    img_fft = torch.fft.fftshift(torch.fft.fft2(image))
     print(img_fft.shape, img_fft.dtype)
-    show_fft = torch.fft.fftshift(torch.log(torch.abs(img_fft)))
-    print(show_fft.shape, show_fft.dtype)
-    print(show_fft.max(), show_fft.min(), show_fft.mean())
-    show_fft = (show_fft - show_fft.min()) / (show_fft.max() - show_fft.min())
     plt.subplot(2, 2, 1)
     plt.imshow(tensor2image_np(image))
     plt.subplot(2, 2, 2)
-    plt.imshow(tensor2image_np(show_fft))
+    plt.imshow(tensor2image_np(get_fft_show(img_fft)))
     img_fft = torch.view_as_real(img_fft)
     print(img_fft.shape, img_fft.dtype)
+    # img_fft[:, :, :, 0] = 0
+    # img_fft[:, 300:500, 400:600, :] = 0
+    f = 0.6
+    sh = int(H // 2 * f)
+    sw = int(W // 2 * f)
+    img_fft[:, :sh, :, :] = 0
+    img_fft[:, -sh:, :, :] = 0
+    img_fft[:, :, :sw, :] = 0
+    img_fft[:, :, -sw:, :] = 0
+    s = 200
+    # img_fft[:, :H//2-s, :, :] = 0
+    # img_fft[:, H//2+s:, :, :] = 0
+    # img_fft[:, :, :W//2-s, :] = 0
+    # img_fft[:, :, W//2+s:, :] = 0
+    f = 0.05
+    sh = int(H // 2 * f)
+    sw = int(W // 2 * f)
+    # img_fft[:, H//2-sh:H//2+sh, W//2-sw:W//2+sw, :] = 0
+    img_fft = torch.view_as_complex(img_fft)
+    plt.subplot(2, 2, 3)
+    plt.imshow(tensor2image_np(get_fft_show(img_fft)))
+    image = torch.fft.ifft2(torch.fft.ifftshift(img_fft)).real
+    print(img_fft.shape, img_fft.dtype)
+    plt.subplot(2, 2, 4)
+    plt.imshow(tensor2image_np(image))
     plt.show()
 
 
@@ -261,6 +288,6 @@ if __name__ == '__main__':
     # test3()
     # test_conv_channel_num()
     # test4()
-    # test5()
+    test5()
     # lr_scheduler()
-    test_clip()
+    # test_clip()

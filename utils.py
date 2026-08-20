@@ -57,7 +57,7 @@ class ArcTan(nn.Module):
     def __init__(self, inplace=False):
         super().__init__()
         self.inplace = inplace
-    
+
     def forward(self, x:torch.Tensor):
         if self.inplace:
             return x.atan_()
@@ -68,10 +68,10 @@ class ArcTan(nn.Module):
 class MyActivation1(nn.Module):
     def __init__(self):
         super().__init__()
-    
+
     def __forward(self, x):
         return x / (x ** 2 * 0.25 + 1.)
-    
+
     def forward(self, x):
         return checkpoint(self.__forward, x)
 
@@ -80,13 +80,13 @@ class FixedSoftplus(nn.Module):
     def __init__(self):
         super().__init__()
         self.b = math.log(2, math.e) * 0.5
-    
+
     def __forward(self, x):
         return F.softplus(x, beta=2).add_(-self.b)
-    
+
     def forward(self, x):
         return checkpoint(self.__forward, x)
-    
+
     def test(self):
         x = torch.linspace(-10, 10, 1000, dtype=torch.float32)
         y = self.__forward(x)
@@ -136,15 +136,15 @@ class AcDataset(Dataset):
                 v2.RandomHorizontalFlip(0.5),
                 v2.ToDtype(dtype, scale=True)
             ])
-    
+
     def __len__(self):
         return len(self.paths)
-    
+
     def __getitem__(self, index):
         # image = Image.open(self.paths[index]).convert("RGB")
         image = torchvision.io.read_image(self.paths[index], torchvision.io.ImageReadMode.RGB)
         return self.transforms(image) * 2 - 1
-    
+
     def test(self, plot_h, plot_w):
         for h in range(plot_h):
             for w in range(plot_w):
@@ -172,7 +172,7 @@ class Conv(nn.Module):
             group_norm(c_out),
             activition(act, True)
         )
-    
+
     def forward(self, x):
         return self.nn(x)
 
@@ -185,7 +185,7 @@ class ConvT(nn.Module):
             group_norm(c_out),
             activition(act, True)
         )
-    
+
     def forward(self, x):
         return self.nn(x)
 
@@ -207,7 +207,7 @@ class InceptionBlock(nn.Module):
             activition(act),
             nn.Conv2d(c, c, 3, 1, 1)
         )
-    
+
     def forward(self, x, t_emb=None):
         z = self.norm(x)
         z1, z2, z3, z4 = torch.split(z, z.shape[1]//4, dim=1)
@@ -245,7 +245,7 @@ class ResBlock(nn.Module):
             nn.Conv2d(c, c, 3, 1, 1)
         )
         self.conv3 = nn.Conv2d(c, c, 1, 1, 0)
-    
+
     def forward(self, x, t_emb=None):
         z = self.conv1(x)
         if self.linear_emb is not None:
@@ -260,7 +260,7 @@ class SelfAttention(nn.Module):
         super().__init__()
         self.label = 's'
         k, s = 4, 4
-        
+
         self.down = nn.Sequential(
             group_norm(c),
             nn.Conv2d(c, c, k, s, 0)
@@ -268,7 +268,7 @@ class SelfAttention(nn.Module):
         self.attention = nn.MultiheadAttention(c, num_heads, batch_first=True)
         self.up = nn.ConvTranspose2d(c, c, k, s, 0)
         # self.conv_in = nn.Conv2d(c, c, 1, 1, 0)
-    
+
     def forward(self, x):
         z = self.down(x)
         N, C, H, W = z.shape
@@ -292,7 +292,7 @@ class CrossAttention(nn.Module):
         self.attention = nn.MultiheadAttention(c, num_heads, batch_first=True)
         self.up = nn.ConvTranspose2d(c, c, 4, 4, 0)
         self.conv_in = nn.Conv2d(c, c, 1, 1, 0)
-    
+
     def forward(self, x, context=None):
         assert context is not None
         assert context.shape[0] == x.shape[0] and context.shape[-1] == self.context_dim
@@ -328,14 +328,14 @@ class Block0(nn.Module):
             self.ca = [(0, 0) for _ in range(self.res_num)]
 
         c = config_dict["c"]
-        self.conv_in = Conv(c, c, 1, 1, 0, act)
+        self.conv_in = Conv(c, c, 1, 1, 0, act=act)
         res_list = []
         for i in range(self.res_num):
             res_list.append(ResBlock(c//2, self.sa[i], self.ca[i], self.t_emb_dim, act))
         self.res_blocks = nn.ModuleList(res_list)
         c_out = c // 2 * (self.res_num + 2)
-        self.conv_out = Conv(c_out, c, 1, 1, 0, act)
-    
+        self.conv_out = Conv(c_out, c, 1, 1, 0, act=act)
+
     def forward(self, x, t_emb=None, context=None):
         z = self.conv_in(x)
         z0, z = torch.split(z, z.shape[1]//2, dim=1)
@@ -378,7 +378,7 @@ class Block(nn.Module):
             g = config_dict["group"]
         else:
             g = 1
-        
+
         layer_list = []
         for layer in config_dict["layers"]:
             if layer == 'r':
@@ -403,7 +403,7 @@ class Block(nn.Module):
                 raise NotImplementedError(out)
         else:
             self.out = None
-    
+
     def forward(self, x, t_emb=None, context=None):
         z = x
         for layer in self.layers:
@@ -425,13 +425,13 @@ if __name__ == '__main__':
     # dataset = AcDataset("../LL/*", W, H)
     # dataset.enable_data_enhance()
     # dataset.test()
-    
+
     # dataset = DatasetForFilter("frames")
     # dataset.test()
     dataset = AcDataset("frames/*.png", (9*64, 16*64))
     print(len(dataset))
     dataset.test(2, 3)
-    
+
     # block = Block({
     #     "c": 32,
     #     "activation": "ELU",
@@ -444,5 +444,5 @@ if __name__ == '__main__':
     # t_emb = torch.randn([3, 64], dtype=torch.float32, device="cpu")
     # context = torch.randn([3, 16, 256], dtype=torch.float32, device="cpu")
     # print(block(x, t_emb, context).shape)
-    
+
     # FixedSoftplus().test()
